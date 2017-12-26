@@ -127,16 +127,7 @@ training.new <- training.noNAs[inTrain, ]
 testing.new <- training.noNAs[-inTrain, ]
 ```
 
-Let's try a first model with a random forest using all the predictors
-
-```{r}
-library(dplyr)
-train_corr <- cor(subset(training.new, select=-classe))
-train_corr <- as.data.frame(as.table(train_corr)) %>% arrange(Freq)
-train_corr
-```
-
-let's try with a first model using a regression tree model using all the predictors
+Let's try with a first model using a regression tree model using all the predictors
 
 ```{r}
 library(caret)
@@ -173,7 +164,9 @@ rfFit <- train(classe ~ ., method = "rf", data = training.new, model = FALSE, pr
 rfFit$finalModel
 ```
 
-Once modeled, let's predict new values from the testing data frame and calculate the confusion matrix on the testing data frame
+## Out of sample error
+
+Once modeled, let's predict new values from the testing data frame and calculate the confusion matrix on the testing data frame to calculate the out of sample error.
 
 ```{r}
 predRf <- predict(rfFit, testing.new)
@@ -187,6 +180,7 @@ We can see now that the accuracy is now equal to **98%**, that is a very good va
 Finally, let's predict data for the initial testing data frame, that doesn't have the **classe** variable. I join then the prediction to the testing data frame
 
 ```{r}
+library(dplyr)
 predRf <- predict(rfFit, testing) %>% data.frame()
 names(predRf)[1] <- "pred_classe"
 test.pred <- testing %>% bind_cols(predRf)
@@ -198,3 +192,9 @@ Let's see now the predicted values for the **classe** value
 test.pred$pred_classe
 ```
 
+## Conclusion
+
+### How the model is built
+
+The model chosen to correctly classify the 20 observations in the testing set is a random forest model, using all the predictors available in the cleaned training set. 
+I used this approach after trying multiple regression models and different implementations of classification trees. I checked that the random forest has a better prediction accuracy, as shown before.
