@@ -1,13 +1,12 @@
 ---
 title: "Assignment"
-output:
-  html_notebook:
-    highlight: tango
-    theme: cosmo
-    toc: yes
-    toc_float: yes
-  html_document:
-    toc: yes
+output: 
+        html_notebook:
+                toc: yes
+                toc_float: yes
+                theme: cosmo
+                highlight: tango
+                # css: www/css/main.css
 ---
 
 ```{r, echo = FALSE}
