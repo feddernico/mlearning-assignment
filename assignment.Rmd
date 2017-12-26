@@ -18,6 +18,8 @@ output:
 
 ```
 
+The aim of the document is to present the result of the analysis made following the Practical Machine Learning course assignment.
+
 ## Load Data
 
 Let's load the training and test set into a dataframe
@@ -146,6 +148,13 @@ fitControl <- trainControl(method = "repeatedcv",
 
 rpartFit <- train(classe ~ ., method = "rpart", data = training.new, model = FALSE, preProcess = "scale", trControl = fitControl)
 rpartFit$finalModel
+```
+
+I will then plot the regression and classification tree
+
+```{r}
+plot(rpartFit$finalModel, uniform = TRUE, main = "Classification Tree")
+text(rpartFit$finalModel, use.n = TRUE, all = TRUE, cex = .8)
 ```
 
 Let's then predict some new variables from the testing set and calculate the confusion matrix, in order to evaluate the accuracy of the model.
