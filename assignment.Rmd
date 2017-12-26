@@ -1,0 +1,192 @@
+---
+title: "Assignment"
+output:
+  html_notebook:
+    highlight: tango
+    theme: cosmo
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+---
+
+```{r, echo = FALSE}
+# Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+# Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+# When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+```
+
+## Load Data
+
+Let's load the training and test set into a dataframe
+
+```{r}
+training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+```
+
+Let's set a unique seed, so the calculations made are fully reproducible
+
+```{r}
+set.seed(10557)
+```
+
+
+## Data Exploration
+
+Let's first explore the data set available. Starting from the documentation provided, we can assign a description to each value of the variable **classe**:
+
+ - A: Exercises done exactly according to the specification
+ - B: Throwing the elbows to the front
+ - C: Lifting the dumbbell only halfway
+ - D: Lowering the dumbbell only halfway
+ - E: Throwing the hips to the front
+
+let's then discovery the occurence of class in the training data set
+
+```{r}
+table(training$classe)
+```
+
+and the relative frequency of it
+
+```{r}
+table(training$classe) / nrow(training)
+```
+
+it seems then that the class A represents the majority, it is 28% of the training set, nearly a third of it.
+
+```{r}
+dim(training)
+```
+
+The data sets available contain 160 variables, so it will be a good idea to clean them and use just the more meaningful variables avaialble, in order to improve the prediction model.
+
+## Clean data set
+
+let's first remove from training and test sets the categorical values, in order to provide in the data frame just the sensor readings
+
+```{r}
+training.sensor <- training[, 8:ncol(training)]
+testing.sensor <- testing[, 8:ncol(testing)]
+```
+
+let's remove from both training and data sets te variables that just contain NA values in the training set
+
+```{r}
+training.noNAs <- training.sensor[, colSums(is.na(training.sensor)) == 0]
+testing.noNAs <- testing.sensor[, colSums(is.na(testing.sensor)) == 0]
+```
+
+and then check the dimension of the two data sets
+
+```{r}
+dim(training.noNAs)
+```
+
+```{r}
+dim(testing.noNAs)
+```
+
+Now we have 53 variable instead of 160, the 107 variable eliminated are pretty useless because they are made just of NA values, so they can't give any contribution to the prediction model.
+
+Let's have a second round of cleaning by eliminating those variables which have near zero variance. There is a debate around the topic, because whilst we should definitely remove zero variance predictors (they don't contribute to model prediction accuracy), it is not always true that near zero variance predictors don't positively contribute to the model.
+
+For the sake of simplicity, since there are a lot of variables already in the dataset, I will remove all the near zero variance predictors.
+
+```{r}
+library(caret)
+nearZeroVar <- nearZeroVar(training.noNAs, saveMetrics = TRUE)
+
+# removes the variables with zero or near zero variance 
+training.nzv <- training.noNAs[, nearZeroVar[,"zeroVar"] + nearZeroVar[,"nzv"] > 0]
+testing.nzv <- testing.noNAs[, nearZeroVar[,"zeroVar"] + nearZeroVar[,"nzv"] > 0]
+```
+
+It seems that using this approach I end up removing all the variables. So I will stick with the data frame with just the values that are not NAs.
+
+```{r}
+dim(training.noNAs)
+```
+
+```{r}
+dim(testing.noNAs)
+```
+
+## Model building
+
+Since the test set has just 20 observations, I will resample the training set in order to have training and test set from the same data source.
+
+```{r}
+inTrain <- createDataPartition(y = training$classe, p = 0.7, list = FALSE)
+training.new <- training.noNAs[inTrain, ]
+testing.new <- training.noNAs[-inTrain, ]
+```
+
+Let's try a first model with a random forest using all the predictors
+
+```{r}
+library(dplyr)
+train_corr <- cor(subset(training.new, select=-classe))
+train_corr <- as.data.frame(as.table(train_corr)) %>% arrange(Freq)
+train_corr
+```
+
+let's try with a first model using a regression tree model using all the predictors
+
+```{r}
+library(caret)
+
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10,
+                   classProbs = TRUE)
+
+rpartFit <- train(classe ~ ., method = "rpart", data = training.new, model = FALSE, preProcess = "scale", trControl = fitControl)
+rpartFit$finalModel
+```
+
+Let's then predict some new variables from the testing set and calculate the confusion matrix, in order to evaluate the accuracy of the model.
+
+```{r}
+predRpart <- predict(rpartFit, testing.new)
+
+# prints the confusion matrix
+confusionMatrix(predRpart, testing.new$classe)
+```
+
+I don't have a good accuracy with this model, it is below 50%. So let's try now with a random forest model, in order to try and increase the accuracy of the prediction capability.
+
+```{r}
+rfFit <- train(classe ~ ., method = "rf", data = training.new, model = FALSE, preProcess = "scale", trControl = fitControl, ntree = 5)
+rfFit$finalModel
+```
+
+Once modeled, let's predict new values from the testing data frame and calculate the confusion matrix on the testing data frame
+
+```{r}
+predRf <- predict(rfFit, testing.new)
+
+# prints the confusion matrix
+confusionMatrix(predRf, testing.new$classe)
+```
+
+We can see now that the accuracy is now equal to **98%**, that is a very good value for a predictive model.
+
+Finally, let's predict data for the initial testing data frame, that doesn't have the **classe** variable. I join then the prediction to the testing data frame
+
+```{r}
+predRf <- predict(rfFit, testing) %>% data.frame()
+names(predRf)[1] <- "pred_classe"
+test.pred <- testing %>% bind_cols(predRf)
+```
+
+Let's see now the predicted values for the **classe** value
+
+```{r}
+test.pred$pred_classe
+```
+
