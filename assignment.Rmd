@@ -1,12 +1,8 @@
 ---
 title: "Assignment"
-output: 
-        html_document:
-                toc: yes
-                toc_float: yes
-                theme: cosmo
-                highlight: tango
-                # css: www/css/main.css
+author: "Federico Viscioletti"
+date: "12/24/2017"
+output: html_document
 ---
 
 The aim of the document is to present the result of the analysis made following the Practical Machine Learning course assignment.
